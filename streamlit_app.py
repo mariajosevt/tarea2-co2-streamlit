@@ -5,7 +5,7 @@ import plotly.express as px
 import streamlit as st
 
 # ============================
-# configuración de la app
+# Configuración de la app
 # ============================
 st.set_page_config(
     page_title="Emisiones de CO₂ en el Mundo",
@@ -20,10 +20,11 @@ CSV_PATH = os.path.join(
 )
 
 # ============================
-# carga y preparación de datos
+# Carga y preparación de datos
 # ============================
 @st.cache_data
 def load_emissions(csv_path: str) -> pd.DataFrame:
+    """Carga el CSV de emisiones y lo deja listo para usar."""
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"No se encontró el csv: {csv_path}")
 
@@ -41,6 +42,7 @@ def load_emissions(csv_path: str) -> pd.DataFrame:
     if not value_cols:
         raise ValueError("No se encontró columna de emisiones en el dataset.")
 
+    # En OWID, la columna `co2` está en millones de toneladas
     df = df.rename(columns={value_cols[0]: "co2"})
 
     # limpiar valores
@@ -65,7 +67,7 @@ def make_co2_map(df_co2: pd.DataFrame, year: int):
         hover_name="country",
         color_continuous_scale="Reds",
         projection="natural earth",
-        labels={"co2": "Emisiones de CO₂ (toneladas)"},
+        labels={"co2": "Emisiones de CO₂ (millones de toneladas)"},
     )
 
     # países sin dato quedan por defecto en gris/claro en el mapa base
@@ -79,7 +81,7 @@ def make_co2_map(df_co2: pd.DataFrame, year: int):
 
 
 # ============================
-# app principal
+# App principal
 # ============================
 def main():
     st.title("Explorador interactivo de emisiones de CO₂")
@@ -87,7 +89,8 @@ def main():
         """
         Esta aplicación permite explorar la evolución histórica de las
         emisiones de dióxido de carbono (CO₂) a nivel global y por país,
-        utilizando datos de **Our World In Data** (Global Carbon Budget).
+        utilizando datos de **Our World In Data** basados en el
+        **Global Carbon Budget**.
         """
     )
 
@@ -156,6 +159,14 @@ def main():
     # ========== TAB 2: COMPARACIÓN ==========
     with tab_paises:
         st.subheader("Comparación entre países")
+        st.markdown(
+            """
+            Esta sección se inspira en las comparaciones de emisiones por país
+            de Our World In Data. Permite ver cómo han evolucionado los
+            principales emisores a lo largo del tiempo y cuál es su peso
+            relativo en las emisiones globales.
+            """
+        )
 
         countries = sorted(df_co2["country"].unique())
         default_countries = [
@@ -172,7 +183,7 @@ def main():
             "Rango de años",
             min_value=min_year,
             max_value=max_year,
-            value=(1960, max_year),
+            value=(1960, max_value),
             step=1,
         )
 
@@ -218,7 +229,7 @@ def main():
                     color="country",
                     labels={
                         "year": "Año",
-                        "co2": "Emisiones de CO₂ (toneladas)",
+                        "co2": "Emisiones de CO₂ (millones de toneladas)",
                         "country": "País",
                     },
                     title="Emisiones anuales de CO₂ por país",
@@ -243,7 +254,7 @@ def main():
                 y="country",
                 orientation="h",
                 labels={
-                    "co2": "Emisiones de CO₂ (toneladas)",
+                    "co2": "Emisiones de CO₂ (millones de toneladas)",
                     "country": "País",
                 },
                 title=f"Top 10 emisores en {year}",
@@ -267,7 +278,7 @@ def main():
             y="co2",
             labels={
                 "year": "Año",
-                "co2": "Emisiones globales de CO₂ (toneladas)",
+                "co2": "Emisiones globales de CO₂ (millones de toneladas)",
             },
             title="Emisiones globales de CO₂ a lo largo del tiempo",
         )
@@ -277,10 +288,9 @@ def main():
         st.markdown(
             """
             Esta curva permite observar cómo las emisiones globales se
-            mantienen bajas hasta la Revolución Industrial y luego
-            crecen de forma muy acelerada durante el siglo XX, con
-            ligeras desaceleraciones asociadas a crisis económicas
-            o eventos globales.
+            mantienen relativamente bajas hasta la Revolución Industrial y luego
+            crecen de forma muy acelerada durante el siglo XX, con algunas
+            desaceleraciones asociadas a crisis económicas o eventos globales.
             """
         )
 
@@ -289,34 +299,58 @@ def main():
         st.subheader("Acerca de los datos y decisiones de diseño")
         st.markdown(
             """
-            **Datos utilizados**
+            **Datasets utilizados**
 
             - *Annual CO₂ emissions per country*  
-              Fuente: Global Carbon Budget (Our World In Data).
+              Fuente: Global Carbon Budget, compilado y publicado por
+              [Our World In Data](https://ourworldindata.org/co2-emissions).  
+              En el código se utiliza la columna `co2`, que corresponde a
+              **emisiones anuales de CO₂ medidas en millones de toneladas**.
 
             **Unidades y cobertura**
 
-            - Emisiones anuales de CO₂, en toneladas.  
-            - Cobertura temporal aproximada: 1750–2024 (según país).  
-            - Cobertura espacial: países y algunas regiones agregadas.
+            - Unidad: millones de toneladas de CO₂ emitidas por año.  
+            - Cobertura temporal aproximada: desde mediados del siglo XVIII
+              (alrededor de 1750) hasta años recientes, dependiendo del país.  
+            - Cobertura espacial: países y algunas regiones agregadas
+              (por ejemplo *World*, *Asia*, *Europe*).
+
+            **Relación con las visualizaciones de Our World In Data**
+
+            - El **mapa global** se inspira en los mapas de OWID de emisiones
+              anuales por país, utilizando códigos ISO3 como llave de unión.  
+            - Los gráficos de **series de tiempo por país** y **serie global**
+              recrean la idea de analizar la evolución histórica de las
+              emisiones tanto a nivel de país como para el total mundial.  
+            - El **ranking de Top 10 emisores** retoma las comparaciones
+              de mayores contribuyentes a las emisiones en un año dado.
 
             **Decisiones de diseño**
 
-            - Se usa una escala continua de rojos para asociar visualmente
-              mayor emisión con mayor intensidad de color.
-            - El mismo año seleccionado controla tanto el mapa como la tabla
-              y el ranking, para mantener consistencia.
-            - La comparación de países permite cambiar entre emisiones
-              absolutas y participación global, ofreciendo dos lecturas
-              complementarias del mismo fenómeno.
+            - Se utiliza una escala continua de rojos en el mapa, asociando
+              intuitivamente mayores emisiones con mayor intensidad de color.  
+            - Los países sin dato para el año seleccionado se muestran sin
+              color (gris claro), para diferenciarlos de valores reales
+              cercanos a cero. Esta decisión se explica explícitamente en
+              la pestaña del mapa.  
+            - En la comparación de países se ofrecen dos métricas:
+              emisiones absolutas (millones de toneladas) y participación
+              en las emisiones globales (%), lo que permite analizar tanto
+              el peso absoluto como el relativo de cada país.  
+            - El mismo año seleccionado en el *sidebar* actualiza de forma
+              consistente el mapa, la tabla y el ranking, manteniendo un
+              estado compartido entre visualizaciones.
 
             **Limitaciones**
 
-            - Algunos países no cuentan con datos para todos los años.
-            - Las emisiones son territoriales (no ajustadas por consumo
-              ni comercio internacional).
-            - Las emisiones de aviación y transporte internacional
-              no se asignan fácilmente a países individuales.
+            - No todos los países cuentan con información para todos los años;
+              algunos aparecen sin dato en periodos antiguos o recientes.  
+            - Las emisiones utilizadas son territoriales (producción dentro
+              de las fronteras del país), por lo que no están ajustadas por
+              comercio internacional ni por consumo.  
+            - Las emisiones de aviación y transporte internacional se
+              contabilizan en el total global, pero no pueden asignarse de
+              forma directa a un país específico.
             """
         )
 
