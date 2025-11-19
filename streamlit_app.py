@@ -262,6 +262,49 @@ def main():
             )
             fig_top.update_yaxes(categoryorder="total ascending")
             st.plotly_chart(fig_top, use_container_width=True)
+            st.markdown("---")
+            st.subheader("Emisiones acumuladas de CO₂ de los países seleccionados")
+
+            st.markdown(
+                """
+                Aquí vemos la **suma histórica** de las emisiones de cada país
+                dentro del rango de años seleccionado en el control superior.
+                Esta perspectiva es similar a la sección de *cumulative CO₂ emissions*
+                de Our World In Data y se usa para discutir la responsabilidad
+                histórica de cada país.
+                """
+            )
+
+            df_cum = (
+                df_co2[
+                    (df_co2["country"].isin(selected))
+                    & (df_co2["year"].between(year_range[0], year_range[1]))
+                ]
+                .groupby(["country", "year"], as_index=False)
+                .agg({"co2": "sum"})
+                .sort_values(["country", "year"])
+            )
+
+            # acumulado por país
+            df_cum["co2_cum"] = df_cum.groupby("country")["co2"].cumsum()
+
+            fig_cum = px.line(
+                df_cum,
+                x="year",
+                y="co2_cum",
+                color="country",
+                labels={
+                    "year": "Año",
+                    "co2_cum": "Emisiones acumuladas de CO₂\n(millones de toneladas)",
+                    "country": "País",
+                },
+                title="Emisiones acumuladas de CO₂ en el periodo seleccionado",
+            )
+
+            st.plotly_chart(fig_cum, use_container_width=True)
+
+            
+            
 
     # ========== TAB 3: TENDENCIAS ==========
     with tab_tendencias:
@@ -294,6 +337,63 @@ def main():
             desaceleraciones asociadas a crisis económicas o eventos globales.
             """
         )
+        st.markdown("---")
+        st.subheader("Emisiones acumuladas de CO₂ a nivel global")
+
+        df_global_cum = df_global.copy()
+        df_global_cum["co2_cum"] = df_global_cum["co2"].cumsum()
+
+        fig_cum_global = px.line(
+            df_global_cum,
+            x="year",
+            y="co2_cum",
+            labels={
+                "year": "Año",
+                "co2_cum": "Emisiones acumuladas de CO₂ (millones de toneladas)",
+            },
+            title="Emisiones acumuladas de CO₂ en el mundo",
+        )
+
+        st.plotly_chart(fig_cum_global, use_container_width=True)
+
+        st.markdown(
+            """
+            Esta vista acumulada conecta con la discusión de Our World In Data
+            sobre **contribución histórica**: no solo importa cuánto emite el
+            mundo hoy, sino cuánto se ha emitido en total a lo largo del tiempo.
+            """
+        )
+
+        st.markdown("---")
+        st.subheader("Cambio porcentual año a año en las emisiones globales")
+
+        df_change = df_global.copy()
+        df_change["change_pct"] = df_change["co2"].pct_change() * 100
+
+        fig_change = px.bar(
+            df_change.dropna(subset=["change_pct"]),
+            x="year",
+            y="change_pct",
+            labels={
+                "year": "Año",
+                "change_pct": "Cambio porcentual respecto al año anterior",
+            },
+            title="Crecimiento anual de las emisiones globales de CO₂",
+        )
+
+        st.plotly_chart(fig_change, use_container_width=True)
+
+        st.markdown(
+            """
+            Valores positivos indican años en que las emisiones crecieron
+            respecto al año anterior; valores negativos corresponden a años
+            de caída (por ejemplo, crisis económicas o eventos globales).
+            Esta visualización replica la idea de la sección *Annual change
+            in CO₂ emissions* de Our World In Data.
+            """
+        )
+
+        
 
     # ========== TAB 4: RANKING Y DESIGUALDAD ==========
     with tab_ranking:
@@ -503,3 +603,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
