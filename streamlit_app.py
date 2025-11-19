@@ -394,8 +394,9 @@ def main():
         else:
             df_year_pos = df_year_pos.sort_values("co2")
             n = len(df_year_pos)
-            df_year_pos["country_share"] = (range(1, n + 1)) / n
+            df_year_pos["country_share"] = pd.Series(range(1, n + 1), dtype=float) / n
             df_year_pos["emissions_cum_share"] = df_year_pos["co2"].cumsum() / df_year_pos["co2"].sum()
+
 
             fig_lorenz = px.line(
                 df_year_pos,
@@ -483,5 +484,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
