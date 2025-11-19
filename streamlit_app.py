@@ -120,7 +120,7 @@ def main():
         step=1,
     )
 
-        # tabs
+    # tabs
     tab_mapa, tab_paises, tab_tendencias, tab_ranking, tab_info = st.tabs(
         [
             "🌍 Mapa global",
@@ -294,7 +294,7 @@ def main():
             desaceleraciones asociadas a crisis económicas o eventos globales.
             """
         )
-        
+
     # ========== TAB 4: RANKING Y DESIGUALDAD ==========
     with tab_ranking:
         st.subheader("Evolución del ranking de emisiones por país")
@@ -311,7 +311,8 @@ def main():
 
         countries_rank = sorted(df_co2["country"].unique())
         default_countries_rank = [
-            p for p in ["China", "United States", "India", "European Union (27)"] if p in countries_rank
+            p for p in ["China", "United States", "India", "European Union (27)"]
+            if p in countries_rank
         ]
 
         selected_rank = st.multiselect(
@@ -340,15 +341,15 @@ def main():
         )
 
         df_rank_evol["rank"] = (
-            df_rank_evol
-            .groupby("year")["co2"]
-            .rank(ascending=False, method="min")
+            df_rank_evol.groupby("year")["co2"].rank(ascending=False, method="min")
         )
 
         df_rank_sel = df_rank_evol[df_rank_evol["country"].isin(selected_rank)]
 
         if df_rank_sel.empty or not selected_rank:
-            st.warning("Selecciona al menos un país y un rango de años válido para ver el ranking.")
+            st.warning(
+                "Selecciona al menos un país y un rango de años válido para ver el ranking."
+            )
         else:
             fig_bump = px.line(
                 df_rank_sel,
@@ -388,54 +389,58 @@ def main():
             .agg({"co2": "sum"})
         )
 
-    df_year_pos = df_year_all[df_year_all["co2"] > 0].copy()
-    if df_year_pos.empty:
-        st.info("No hay datos positivos de emisiones para construir la curva en este año.")
-    else:
-        # Ordenar países de menor a mayor emisión
-        df_year_pos = df_year_pos.sort_values("co2").reset_index(drop=True)
-        n = len(df_year_pos)
+        df_year_pos = df_year_all[df_year_all["co2"] > 0].copy()
+        if df_year_pos.empty:
+            st.info(
+                "No hay datos positivos de emisiones para construir la curva en este año."
+            )
+        else:
+            # Ordenar países de menor a mayor emisión
+            df_year_pos = df_year_pos.sort_values("co2").reset_index(drop=True)
+            n = len(df_year_pos)
 
-        # Fracción acumulada de países (eje X)
-        country_share = pd.Series(range(1, n + 1), dtype=float) / n
+            # Fracción acumulada de países (eje X)
+            country_share = pd.Series(range(1, n + 1), dtype=float) / n
 
-        # Fracción acumulada de emisiones (eje Y)
-        cum_emissions = df_year_pos["co2"].cumsum()
-        emissions_share = cum_emissions / cum_emissions.iloc[-1]
+            # Fracción acumulada de emisiones (eje Y)
+            cum_emissions = df_year_pos["co2"].cumsum()
+            emissions_share = cum_emissions / cum_emissions.iloc[-1]
 
-        # DataFrame solo con la curva (agregamos el punto inicial 0,0)
-        lorenz_df = pd.DataFrame(
-            {
-                "country_share": [0.0] + country_share.tolist(),
-                "emissions_cum_share": [0.0] + emissions_share.tolist(),
-            }
-        )
+            # DataFrame solo con la curva (agregamos el punto inicial 0,0)
+            lorenz_df = pd.DataFrame(
+                {
+                    "country_share": [0.0] + country_share.tolist(),
+                    "emissions_cum_share": [0.0] + emissions_share.tolist(),
+                }
+            )
 
-        fig_lorenz = px.line(
-            lorenz_df,
-            x="country_share",
-            y="emissions_cum_share",
-            labels={
-                "country_share": "Fracción acumulada de países",
-                "emissions_cum_share": "Fracción acumulada de emisiones",
-            },
-            title=f"Curva tipo Lorenz de emisiones en {year}",
-        )
+            fig_lorenz = px.line(
+                lorenz_df,
+                x="country_share",
+                y="emissions_cum_share",
+                labels={
+                    "country_share": "Fracción acumulada de países",
+                    "emissions_cum_share": "Fracción acumulada de emisiones",
+                },
+                title=f"Curva tipo Lorenz de emisiones en {year}",
+            )
 
-        # Línea de igualdad perfecta (diagonal)
-        fig_lorenz.add_shape(
-            type="line",
-            x0=0, y0=0, x1=1, y1=1,
-            line=dict(dash="dash")
-        )
+            # Línea de igualdad perfecta (diagonal)
+            fig_lorenz.add_shape(
+                type="line",
+                x0=0,
+                y0=0,
+                x1=1,
+                y1=1,
+                line=dict(dash="dash"),
+            )
 
-        fig_lorenz.update_xaxes(range=[0, 1])
-        fig_lorenz.update_yaxes(range=[0, 1])
+            fig_lorenz.update_xaxes(range=[0, 1])
+            fig_lorenz.update_yaxes(range=[0, 1])
 
-        st.plotly_chart(fig_lorenz, use_container_width=True)
+            st.plotly_chart(fig_lorenz, use_container_width=True)
 
-    
-    # ========== TAB 4: INFO ==========
+    # ========== TAB 5: INFO ==========
     with tab_info:
         st.subheader("Acerca de los datos y decisiones de diseño")
         st.markdown(
@@ -498,7 +503,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
