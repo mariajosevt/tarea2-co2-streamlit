@@ -120,12 +120,13 @@ def main():
         step=1,
     )
 
-    # tabs
-    tab_mapa, tab_paises, tab_tendencias, tab_info = st.tabs(
+        # tabs
+    tab_mapa, tab_paises, tab_tendencias, tab_ranking, tab_info = st.tabs(
         [
             "🌍 Mapa global",
             "🇺🇳 Comparación de países",
             "📈 Tendencias globales",
+            "🏅 Ranking y desigualdad",
             "ℹ️ Acerca de los datos",
         ]
     )
@@ -293,7 +294,132 @@ def main():
             desaceleraciones asociadas a crisis económicas o eventos globales.
             """
         )
+        
+    # ========== TAB 4: RANKING Y DESIGUALDAD ==========
+    with tab_ranking:
+        st.subheader("Evolución del ranking de emisiones por país")
 
+        st.markdown(
+            """
+            Este gráfico muestra cómo cambia el lugar que ocupa cada país en el
+            ranking de emisiones a lo largo del tiempo. Es un ejemplo de
+            *bump chart*: usamos posición vertical (uno de los canales más
+            precisos) para codificar el ranking, y color para identificar
+            países, tal como se discute en la clase sobre marcas y canales.
+            """
+        )
+
+        countries_rank = sorted(df_co2["country"].unique())
+        default_countries_rank = [
+            p for p in ["China", "United States", "India", "European Union (27)"] if p in countries_rank
+        ]
+
+        selected_rank = st.multiselect(
+            "Selecciona países para seguir su posición en el ranking",
+            options=countries_rank,
+            default=default_countries_rank,
+            key="rank_multiselect",
+        )
+
+        year_range_rank = st.slider(
+            "Rango de años para el ranking",
+            min_value=min_year,
+            max_value=max_year,
+            value=(1960, max_year),
+            step=1,
+            key="rank_year_range",
+        )
+
+        # calcular ranking por año
+        df_rank_evol = (
+            df_co2[
+                df_co2["year"].between(year_range_rank[0], year_range_rank[1])
+            ][["year", "country", "co2"]]
+            .groupby(["year", "country"], as_index=False)
+            .agg({"co2": "sum"})
+        )
+
+        df_rank_evol["rank"] = (
+            df_rank_evol
+            .groupby("year")["co2"]
+            .rank(ascending=False, method="min")
+        )
+
+        df_rank_sel = df_rank_evol[df_rank_evol["country"].isin(selected_rank)]
+
+        if df_rank_sel.empty or not selected_rank:
+            st.warning("Selecciona al menos un país y un rango de años válido para ver el ranking.")
+        else:
+            fig_bump = px.line(
+                df_rank_sel,
+                x="year",
+                y="rank",
+                color="country",
+                markers=True,
+                labels={
+                    "year": "Año",
+                    "rank": "Posición en el ranking (1 = mayor emisor)",
+                    "country": "País",
+                },
+                title="Bump chart: evolución del ranking de emisiones",
+            )
+            # en un ranking, 1 es mejor arriba → invertimos el eje Y
+            fig_bump.update_yaxes(autorange="reversed", dtick=1)
+
+            st.plotly_chart(fig_bump, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("Desigualdad en las emisiones entre países (curva tipo Lorenz)")
+
+        st.markdown(
+            """
+            Aquí se muestra una curva similar a la de Lorenz: ordenamos los países
+            desde los que menos emiten a los que más emiten, y calculamos la
+            fracción acumulada de países versus la fracción acumulada de emisiones.
+            Si todos emitieran lo mismo, la curva sería una diagonal perfecta.
+            Mientras más se aleja de la diagonal, mayor desigualdad en las emisiones.
+            """
+        )
+
+        # usamos el mismo año seleccionado en el sidebar
+        df_year_all = (
+            df_co2[df_co2["year"] == year][["country", "co2"]]
+            .groupby("country", as_index=False)
+            .agg({"co2": "sum"})
+        )
+
+        df_year_pos = df_year_all[df_year_all["co2"] > 0].copy()
+        if df_year_pos.empty:
+            st.info("No hay datos positivos de emisiones para construir la curva en este año.")
+        else:
+            df_year_pos = df_year_pos.sort_values("co2")
+            n = len(df_year_pos)
+            df_year_pos["country_share"] = (range(1, n + 1)) / n
+            df_year_pos["emissions_cum_share"] = df_year_pos["co2"].cumsum() / df_year_pos["co2"].sum()
+
+            fig_lorenz = px.line(
+                df_year_pos,
+                x="country_share",
+                y="emissions_cum_share",
+                labels={
+                    "country_share": "Fracción acumulada de países",
+                    "emissions_cum_share": "Fracción acumulada de emisiones",
+                },
+                title=f"Curva tipo Lorenz de emisiones en {year}",
+            )
+
+            # línea de igualdad perfecta
+            fig_lorenz.add_shape(
+                type="line",
+                x0=0, y0=0, x1=1, y1=1,
+                line=dict(dash="dash")
+            )
+
+            fig_lorenz.update_xaxes(range=[0, 1])
+            fig_lorenz.update_yaxes(range=[0, 1])
+
+            st.plotly_chart(fig_lorenz, use_container_width=True)
+    
     # ========== TAB 4: INFO ==========
     with tab_info:
         st.subheader("Acerca de los datos y decisiones de diseño")
@@ -357,4 +483,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
