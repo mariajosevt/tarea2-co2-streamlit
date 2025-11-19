@@ -183,7 +183,7 @@ def main():
             "Rango de años",
             min_value=min_year,
             max_value=max_year,
-            value=(1960, max_value),
+            value=(1960, max_year),
             step=1,
         )
 
@@ -357,3 +357,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
